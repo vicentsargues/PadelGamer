@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>🎾🎮 Padel Gamer 🎮🎾</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 :root{
   --bg:#0e0f13;
@@ -44,6 +45,10 @@ section.active{display:block;}
 .monthbar div{flex-grow:1;text-align:center;font-weight:600;}
 .monthbar button{padding:6px 10px;background:#10131d;color:var(--text);border:none;border-radius:8px;cursor:pointer;transition:.2s;}
 .monthbar button:hover{background:var(--accent-2);color:#000;}
+/* Ranking */
+.player-card{display:flex;align-items:center;gap:12px;padding:8px;margin:8px 0;background:#0f1320;border-radius:12px;}
+.player-card img{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);}
+.trophy{font-size:22px;margin-left:auto;}
 </style>
 </head>
 <body>
@@ -53,9 +58,11 @@ section.active{display:block;}
 <nav>
 <button onclick="showSection('calendario')">Calendario</button>
 <button onclick="showSection('historico')">Partidos</button>
+<button onclick="showSection('ranking')">Ranking</button>
 </nav>
 </header>
 
+<!-- CALENDARIO -->
 <section id="calendario" class="active">
 <div class="points">
   <div class="point-box team1">Sargues: <span id="puntosSargues">0</span></div>
@@ -71,6 +78,7 @@ section.active{display:block;}
 <div class="grid grid-7" id="grid"></div>
 </section>
 
+<!-- HISTÓRICO -->
 <section id="historico">
 <table class="table">
 <thead>
@@ -84,18 +92,39 @@ section.active{display:block;}
 <tbody id="historicoBody"></tbody>
 </table>
 </section>
+
+<!-- RANKING -->
+<section id="ranking">
+<h2>📊 Ranking de maricones</h2>
+<div id="rankingList"></div>
+<canvas id="rankingChart"></canvas>
+</section>
+
 </div>
 
 <script>
-// -------- CONFIGURACIÓN FÁCIL ----------
+// -------- CONFIGURACIÓN PARTIDOS ----------
 const equipos = ["Sargues","Mantis",""];
 const partidos = [
-{fecha:"2025-09-18", hora:"18:00", ganador:3},
+{fecha:"2025-09-08", hora:"18:00", ganador:3},
 {fecha:"2025-09-05", hora:"18:00", ganador:1, resultado:"6-3,4-6,10-8"},
 {fecha:"2025-09-12", hora:"20:00", ganador:2, resultado:"7-5,3-6,11-9"}
 ];
-// ---------------------------------------
 
+// -------- CONFIGURACIÓN RANKING ----------
+const jugadores = [
+  {nombre:"Jordi", img:"img1.jpg", retraso:10, cancelaciones:1, lvp:13},
+  {nombre:"Josep", img:"img2.jpg", retraso:0, cancelaciones:2, lvp:1},
+  {nombre:"Raul", img:"img3.jpg", retraso:30, cancelaciones:0, lvp:2},
+  {nombre:"Vicent", img:"img4.jpg", retraso:5, cancelaciones:1, lvp:1}
+];
+// fórmula: 0.5 * retraso + 5 * cancelaciones + 5 * lvp
+jugadores.forEach(j=>{
+  j.puntos = j.retraso*0.5 + j.cancelaciones*5 + j.lvp*5;
+});
+jugadores.sort((a,b)=>b.puntos-a.puntos);
+
+// -------- CALENDARIO ----------
 const ES = 'es-ES';
 const fmtMonth = new Intl.DateTimeFormat(ES,{month:'long', year:'numeric'});
 const fmtWeekday = new Intl.DateTimeFormat(ES,{weekday:'short'});
@@ -109,12 +138,7 @@ const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const todayBtn = document.getElementById('todayBtn');
 
-function toKey(d){
-  const y=d.getFullYear();
-  const m=String(d.getMonth()+1).padStart(2,'0');
-  const day=String(d.getDate()).padStart(2,'0');
-  return `${y}-${m}-${day}`;
-}
+function toKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function weekdayMondayFirst(d){ return (d.getDay()+6)%7; }
 function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(),1);}
 function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1,0);}
@@ -140,8 +164,6 @@ const padStart = weekdayMondayFirst(start);
 for(let i=0;i<padStart;i++){
   const filler=document.createElement('div'); filler.className='day out'; grid.appendChild(filler);
 }
-
-// contar puntos solo si se ha jugado
 let pts = [0,0];
 partidos.forEach(p=>{ if(p.ganador<3) pts[p.ganador-1]++; });
 document.getElementById('puntosSargues').textContent=pts[0];
@@ -162,15 +184,11 @@ for(let day=1;day<=end.getDate();day++){
     const equipo = partidoHoy.ganador<3 ? equipos[partidoHoy.ganador-1] : 'Pendiente';
     b.innerHTML = `${partidoHoy.hora} 🎾 ${equipo}`;
     cell.appendChild(b);
-
-    // Color del recuadro según ganador
     if(partidoHoy.ganador===1) cell.style.background="#ff5c5c";
     else if(partidoHoy.ganador===2) cell.style.background="#5c9dff";
   }
-
   if(isToday){
-    const t=document.createElement('div'); t.className='badge today';
-    t.textContent='Hoy';
+    const t=document.createElement('div'); t.className='badge today'; t.textContent='Hoy';
     cell.appendChild(t);
   }
   grid.appendChild(cell);
@@ -187,10 +205,36 @@ partidos.sort((a,b)=> new Date(a.fecha)-new Date(b.fecha)).forEach(p=>{
   const td3=document.createElement('td');
   if(p.ganador===1){ td3.textContent="Sargues"; td3.style.color="#ff5c5c";}
   else if(p.ganador===2){ td3.textContent="Mantis"; td3.style.color="#5c9dff";}
-  else{ td3.textContent="Pendiente"; td3.style.color=""; }
+  else{ td3.textContent="Pendiente"; }
   const td4=document.createElement('td'); td4.textContent = p.resultado || '';
   tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
   tbody.appendChild(tr);
+});
+}
+
+function renderRanking(){
+const list=document.getElementById('rankingList');
+list.innerHTML='';
+jugadores.forEach((j,i)=>{
+  const div=document.createElement('div'); div.className='player-card';
+  const img=document.createElement('img'); img.src=j.img;
+  const name=document.createElement('div'); name.textContent=`${i+1}. ${j.nombre} - ${j.puntos} pts`;
+  div.appendChild(img); div.appendChild(name);
+  if(i===0){ const t=document.createElement('div'); t.className='trophy'; t.textContent='🏆'; div.appendChild(t); }
+  list.appendChild(div);
+});
+const ctx=document.getElementById('rankingChart').getContext('2d');
+new Chart(ctx,{
+  type:'bar',
+  data:{
+    labels:jugadores.map(j=>j.nombre),
+    datasets:[{
+      label:'Puntos',
+      data:jugadores.map(j=>j.puntos),
+      backgroundColor:['#ff5c5c','#5c9dff','#35e6a8','#7cf4ff']
+    }]
+  },
+  options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
 });
 }
 
@@ -201,6 +245,7 @@ todayBtn.addEventListener('click',()=>{ current=new Date(today.getFullYear(), to
 function showSection(id){
 document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
 document.getElementById(id).classList.add('active');
+if(id==='ranking'){ renderRanking(); }
 }
 
 renderWeekdays();
