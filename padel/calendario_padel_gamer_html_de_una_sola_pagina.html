@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🎾🎮 Padel Gamer 🎮🎾</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{
+  --bg:#0e0f13;
+  --card:#151824;
+  --muted:#8892b0;
+  --text:#e6e9f2;
+  --accent:#35e6a8;
+  --accent-2:#7cf4ff;
+  --team1:#ff5c5c;
+  --team2:#5c9dff;
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:Inter,sans-serif;color:var(--text);background:var(--bg);}
+.wrap{max-width:1000px;margin:24px auto;padding:16px;}
+header{display:flex;justify-content:space-between;align-items:center;padding:16px;border-bottom:1px solid rgba(255,255,255,.1);}
+header h1{margin:0;font-family:Montserrat,sans-serif;font-weight:800;font-size:1.8em;}
+nav button{margin-left:8px;background:#10131d;border:none;color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer;transition:.2s;}
+nav button:hover{background:var(--accent-2);color:#000;}
+section{display:none;padding:16px;background:var(--card);border-radius:16px;margin-top:16px;}
+section.active{display:block;}
+.grid{display:grid;gap:6px;}
+.grid-7{grid-template-columns:repeat(7,1fr);}
+.day{min-height:80px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#0f1320;padding:6px;display:flex;flex-direction:column;justify-content:space-between;transition:.2s;}
+.day.out{opacity:.3;}
+.number{font-size:14px;font-weight:600;}
+.badge{font-size:11px;font-weight:600;border-radius:6px;padding:2px 6px;margin-top:4px;}
+.badge.play{background: var(--accent); color:#000; display:flex; justify-content:space-between; font-weight:600;}
+.badge.today{background: var(--accent-2); color:#000; font-weight:600;}
+.table{width:100%;border-collapse:separate;border-spacing:0 6px;margin-top:16px;}
+.table th, .table td{border:1px solid rgba(255,255,255,.1);padding:8px;text-align:center;border-radius:8px;background:#0f1320;}
+.table th{background:#10131d;}
+.points{display:flex;gap:24px;font-weight:600;margin-bottom:12px;}
+.point-box{display:flex;align-items:center;gap:6px;padding:4px 12px;border-radius:12px;font-weight:600;}
+.team1{background:var(--team1);color:#000;}
+.team2{background:var(--team2);color:#000;}
+.monthbar{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.monthbar div{flex-grow:1;text-align:center;font-weight:600;}
+.monthbar button{padding:6px 10px;background:#10131d;color:var(--text);border:none;border-radius:8px;cursor:pointer;transition:.2s;}
+.monthbar button:hover{background:var(--accent-2);color:#000;}
+/* Ranking */
+.player-card{display:flex;align-items:center;gap:12px;padding:8px;margin:8px 0;background:#0f1320;border-radius:12px;}
+.player-card img{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);}
+.trophy{font-size:22px;margin-left:auto;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<h1>🎾🎮 Padel Gamer 🎮🎾</h1>
+<nav>
+<button onclick="showSection('calendario')">Calendario</button>
+<button onclick="showSection('historico')">Partidos</button>
+<button onclick="showSection('ranking')">Ranking</button>
+</nav>
+</header>
+
+<!-- CALENDARIO -->
+<section id="calendario" class="active">
+<div class="points">
+  <div class="point-box team1">Sargues: <span id="puntosSargues">0</span></div>
+  <div class="point-box team2">Mantis: <span id="puntosMantis">0</span></div>
+</div>
+<div class="monthbar">
+<button id="prevBtn">⟵</button>
+<button id="todayBtn">Hoy</button>
+<div id="monthTitle"></div>
+<button id="nextBtn">⟶</button>
+</div>
+<div class="grid grid-7" id="dow"></div>
+<div class="grid grid-7" id="grid"></div>
+</section>
+
+<!-- HISTÓRICO -->
+<section id="historico">
+<table class="table">
+<thead>
+<tr>
+<th>Fecha</th>
+<th>Hora</th>
+<th>Ganador</th>
+<th>Resultado</th>
+</tr>
+</thead>
+<tbody id="historicoBody"></tbody>
+</table>
+</section>
+
+<!-- RANKING -->
+<section id="ranking">
+<h2>📊 Ranking de maricones</h2>
+<div id="rankingList"></div>
+<canvas id="rankingChart"></canvas>
+</section>
+
+</div>
+
+<script>
+// -------- CONFIGURACIÓN PARTIDOS ----------
+const equipos = ["Sargues","Mantis",""];
+const partidos = [
+{fecha:"2025-09-08", hora:"18:00", ganador:3},
+{fecha:"2025-09-05", hora:"18:00", ganador:1, resultado:"6-3,4-6,10-8"},
+{fecha:"2025-09-12", hora:"20:00", ganador:2, resultado:"7-5,3-6,11-9"}
+];
+
+// -------- CONFIGURACIÓN RANKING ----------
+const jugadores = [
+  {nombre:"Jordi", img:"img1.jpg", retraso:10, cancelaciones:1, lvp:13},
+  {nombre:"Josep", img:"img2.jpg", retraso:0, cancelaciones:2, lvp:1},
+  {nombre:"Raul", img:"img3.jpg", retraso:30, cancelaciones:0, lvp:2},
+  {nombre:"Vicent", img:"img4.jpg", retraso:5, cancelaciones:1, lvp:1}
+];
+// fórmula: 0.5 * retraso + 5 * cancelaciones + 5 * lvp
+jugadores.forEach(j=>{
+  j.puntos = j.retraso*0.5 + j.cancelaciones*5 + j.lvp*5;
+});
+jugadores.sort((a,b)=>b.puntos-a.puntos);
+
+// -------- CALENDARIO ----------
+const ES = 'es-ES';
+const fmtMonth = new Intl.DateTimeFormat(ES,{month:'long', year:'numeric'});
+const fmtWeekday = new Intl.DateTimeFormat(ES,{weekday:'short'});
+const today = new Date();
+let current = new Date(today.getFullYear(), today.getMonth(), 1);
+
+const grid = document.getElementById('grid');
+const dow = document.getElementById('dow');
+const title = document.getElementById('monthTitle');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const todayBtn = document.getElementById('todayBtn');
+
+function toKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function weekdayMondayFirst(d){ return (d.getDay()+6)%7; }
+function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(),1);}
+function endOfMonth(d){ return new Date(d.getFullYear(), d.getMonth()+1,0);}
+function addMonths(d,n){ return new Date(d.getFullYear(), d.getMonth()+n,1); }
+
+function renderWeekdays(){
+dow.innerHTML='';
+const ref = new Date(2025,7,4); // lunes
+for(let i=0;i<7;i++){
+  const d=new Date(ref); d.setDate(ref.getDate()+i);
+  const el=document.createElement('div'); el.className='dow';
+  el.textContent = fmtWeekday.format(d).replace('.','').toUpperCase();
+  dow.appendChild(el);
+}
+}
+
+function render(){
+title.textContent = fmtMonth.format(current).replace(/^./,c=>c.toUpperCase());
+grid.innerHTML='';
+const start=startOfMonth(current);
+const end=endOfMonth(current);
+const padStart = weekdayMondayFirst(start);
+for(let i=0;i<padStart;i++){
+  const filler=document.createElement('div'); filler.className='day out'; grid.appendChild(filler);
+}
+let pts = [0,0];
+partidos.forEach(p=>{ if(p.ganador<3) pts[p.ganador-1]++; });
+document.getElementById('puntosSargues').textContent=pts[0];
+document.getElementById('puntosMantis').textContent=pts[1];
+
+for(let day=1;day<=end.getDate();day++){
+  const d=new Date(current.getFullYear(), current.getMonth(), day);
+  const key=toKey(d);
+  const isToday= key === toKey(today);
+  const partidoHoy = partidos.find(p=>p.fecha===key);
+
+  const cell=document.createElement('div'); cell.className='day';
+  const top=document.createElement('div'); top.className='number'; top.textContent=day;
+  cell.appendChild(top);
+
+  if(partidoHoy){
+    const b=document.createElement('div'); b.className='badge play';
+    const equipo = partidoHoy.ganador<3 ? equipos[partidoHoy.ganador-1] : 'Pendiente';
+    b.innerHTML = `${partidoHoy.hora} 🎾 ${equipo}`;
+    cell.appendChild(b);
+    if(partidoHoy.ganador===1) cell.style.background="#ff5c5c";
+    else if(partidoHoy.ganador===2) cell.style.background="#5c9dff";
+  }
+  if(isToday){
+    const t=document.createElement('div'); t.className='badge today'; t.textContent='Hoy';
+    cell.appendChild(t);
+  }
+  grid.appendChild(cell);
+}
+}
+
+function renderHistorico(){
+const tbody=document.getElementById('historicoBody');
+tbody.innerHTML='';
+partidos.sort((a,b)=> new Date(a.fecha)-new Date(b.fecha)).forEach(p=>{
+  const tr=document.createElement('tr');
+  const td1=document.createElement('td'); td1.textContent=p.fecha;
+  const td2=document.createElement('td'); td2.textContent=p.hora || '';
+  const td3=document.createElement('td');
+  if(p.ganador===1){ td3.textContent="Sargues"; td3.style.color="#ff5c5c";}
+  else if(p.ganador===2){ td3.textContent="Mantis"; td3.style.color="#5c9dff";}
+  else{ td3.textContent="Pendiente"; }
+  const td4=document.createElement('td'); td4.textContent = p.resultado || '';
+  tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
+  tbody.appendChild(tr);
+});
+}
+
+function renderRanking(){
+const list=document.getElementById('rankingList');
+list.innerHTML='';
+jugadores.forEach((j,i)=>{
+  const div=document.createElement('div'); div.className='player-card';
+  const img=document.createElement('img'); img.src=j.img;
+  const name=document.createElement('div'); name.textContent=`${i+1}. ${j.nombre} - ${j.puntos} pts`;
+  div.appendChild(img); div.appendChild(name);
+  if(i===0){ const t=document.createElement('div'); t.className='trophy'; t.textContent='🏆'; div.appendChild(t); }
+  list.appendChild(div);
+});
+const ctx=document.getElementById('rankingChart').getContext('2d');
+new Chart(ctx,{
+  type:'bar',
+  data:{
+    labels:jugadores.map(j=>j.nombre),
+    datasets:[{
+      label:'Puntos',
+      data:jugadores.map(j=>j.puntos),
+      backgroundColor:['#ff5c5c','#5c9dff','#35e6a8','#7cf4ff']
+    }]
+  },
+  options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+});
+}
+
+prevBtn.addEventListener('click',()=>{ current=addMonths(current,-1); render(); });
+nextBtn.addEventListener('click',()=>{ current=addMonths(current,1); render(); });
+todayBtn.addEventListener('click',()=>{ current=new Date(today.getFullYear(), today.getMonth(),1); render(); });
+
+function showSection(id){
+document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+document.getElementById(id).classList.add('active');
+if(id==='ranking'){ renderRanking(); }
+}
+
+renderWeekdays();
+render();
+renderHistorico();
+</script>
+</body>
+</html>
