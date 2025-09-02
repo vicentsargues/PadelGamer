@@ -27,7 +27,7 @@ section{display:none;padding:16px;background:var(--card);border-radius:16px;marg
 section.active{display:block;}
 .grid{display:grid;gap:6px;}
 .grid-7{grid-template-columns:repeat(7,1fr);}
-.day{min-height:80px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#0f1320;padding:6px;display:flex;flex-direction:column;justify-content:space-between;}
+.day{min-height:80px;border-radius:10px;border:1px solid rgba(255,255,255,.1);background:#0f1320;padding:6px;display:flex;flex-direction:column;justify-content:space-between;transition:.2s;}
 .day.out{opacity:.3;}
 .number{font-size:14px;font-weight:600;}
 .badge{font-size:11px;font-weight:600;border-radius:6px;padding:2px 6px;margin-top:4px;}
@@ -52,7 +52,7 @@ section.active{display:block;}
 <h1>🎾🎮 Padel Gamer 🎮🎾</h1>
 <nav>
 <button onclick="showSection('calendario')">Calendario</button>
-<button onclick="showSection('historico')">Histórico</button>
+<button onclick="showSection('historico')">Partidos</button>
 </nav>
 </header>
 
@@ -88,8 +88,9 @@ section.active{display:block;}
 
 <script>
 // -------- CONFIGURACIÓN FÁCIL ----------
-const equipos = ["Sargues","Mantis"];
+const equipos = ["Sargues","Mantis",""];
 const partidos = [
+{fecha:"2025-09-08", hora:"18:00", ganador:3},
 {fecha:"2025-09-05", hora:"18:00", ganador:1, resultado:"6-3,4-6,10-8"},
 {fecha:"2025-09-12", hora:"20:00", ganador:2, resultado:"7-5,3-6,11-9"}
 ];
@@ -140,9 +141,9 @@ for(let i=0;i<padStart;i++){
   const filler=document.createElement('div'); filler.className='day out'; grid.appendChild(filler);
 }
 
-// contar puntos
+// contar puntos solo si se ha jugado
 let pts = [0,0];
-partidos.forEach(p=>{ pts[p.ganador-1]++; });
+partidos.forEach(p=>{ if(p.ganador<3) pts[p.ganador-1]++; });
 document.getElementById('puntosSargues').textContent=pts[0];
 document.getElementById('puntosMantis').textContent=pts[1];
 
@@ -158,9 +159,15 @@ for(let day=1;day<=end.getDate();day++){
 
   if(partidoHoy){
     const b=document.createElement('div'); b.className='badge play';
-    b.innerHTML = `${partidoHoy.hora} 🎾 ${equipos[partidoHoy.ganador-1]}`;
+    const equipo = partidoHoy.ganador<3 ? equipos[partidoHoy.ganador-1] : 'Pendiente';
+    b.innerHTML = `${partidoHoy.hora} 🎾 ${equipo}`;
     cell.appendChild(b);
+
+    // Color del recuadro según ganador
+    if(partidoHoy.ganador===1) cell.style.background="#ff5c5c";
+    else if(partidoHoy.ganador===2) cell.style.background="#5c9dff";
   }
+
   if(isToday){
     const t=document.createElement('div'); t.className='badge today';
     t.textContent='Hoy';
@@ -177,8 +184,11 @@ partidos.sort((a,b)=> new Date(a.fecha)-new Date(b.fecha)).forEach(p=>{
   const tr=document.createElement('tr');
   const td1=document.createElement('td'); td1.textContent=p.fecha;
   const td2=document.createElement('td'); td2.textContent=p.hora || '';
-  const td3=document.createElement('td'); td3.textContent = equipos[p.ganador-1];
-  td4=document.createElement('td'); td4.textContent = p.resultado || '';
+  const td3=document.createElement('td');
+  if(p.ganador===1){ td3.textContent="Sargues"; td3.style.color="#ff5c5c";}
+  else if(p.ganador===2){ td3.textContent="Mantis"; td3.style.color="#5c9dff";}
+  else{ td3.textContent="Pendiente"; td3.style.color=""; }
+  const td4=document.createElement('td'); td4.textContent = p.resultado || '';
   tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4);
   tbody.appendChild(tr);
 });
