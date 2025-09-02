@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>➕ Registrar / Actualizar Partido - Padel Gamer</title>
 <style>
-  body { font-family: Arial, sans-serif; background:#0e0f13; color:#e6e9f2; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;}
-  .container { background:#151824; padding:24px; border-radius:16px; width:320px; box-shadow:0 4px 10px rgba(0,0,0,.5);}
+  body { font-family: Arial, sans-serif; background:#0e0f13; color:#e6e9f2; display:flex; justify-content:center; align-items:flex-start; padding-top:24px; margin:0;}
+  .container { background:#151824; padding:24px; border-radius:16px; width:360px; box-shadow:0 4px 10px rgba(0,0,0,.5);}
   h2 { text-align:center; margin-bottom:16px; }
   form { display:flex; flex-direction:column; gap:12px; }
   label { font-weight:600; font-size:14px; }
@@ -15,6 +15,12 @@
   button { padding:10px; border:none; border-radius:10px; background:#35e6a8; color:#000; font-weight:600; cursor:pointer; transition:.2s; }
   button:hover { background:#7cf4ff; }
   #status { margin-top:12px; text-align:center; font-weight:600; }
+  /* Mini calendario */
+  .mini-calendar { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:16px; }
+  .day { width:40px; height:40px; display:flex; align-items:center; justify-content:center; border-radius:6px; background:#10131d; font-weight:600; cursor:pointer; transition:.2s; }
+  .day.red { background:#ff5c5c; }
+  .day.blue { background:#5c9dff; }
+  .day.gray { background:#7c7c7c; }
 </style>
 </head>
 <body>
@@ -23,8 +29,8 @@
   <form id="addForm">
     <label>Fecha:</label>
     <input type="date" id="fecha" required>
-    <label>Hora:</label>
-    <input type="time" id="hora" required>
+    <label>Hora (opcional):</label>
+    <input type="time" id="hora">
     <label>Ganador:</label>
     <select id="ganador">
       <option value="3">Pendiente</option>
@@ -38,44 +44,92 @@
     <button type="submit">Registrar / Actualizar</button>
   </form>
   <div id="status"></div>
+
+  <div id="miniCalendar" class="mini-calendar"></div>
+  <button id="sendGit" style="margin-top:12px;">📤 Enviar cambios a GitHub</button>
 </div>
 
 <script>
 const BACK_JSON_URL = "https://raw.githubusercontent.com/vicentsargues/PadelGamer/main/back.json";
+let partidosCache = [];
 
-document.getElementById("addForm").addEventListener("submit", async (e)=>{
+// Obtener JSON inicial
+async function cargarPartidos() {
+  try {
+    let res = await fetch(BACK_JSON_URL);
+    if(!res.ok) throw new Error("No se pudo leer el JSON.");
+    partidosCache = await res.json();
+    renderMiniCalendar();
+  } catch(err) {
+    console.error(err);
+  }
+}
+
+// Render mini calendario
+function renderMiniCalendar() {
+  const calendar = document.getElementById("miniCalendar");
+  calendar.innerHTML = '';
+  const today = new Date();
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd = new Date(today.getFullYear(), today.getMonth()+1, 0);
+
+  for(let day=1; day<=monthEnd.getDate(); day++){
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const dayEl = document.createElement('div');
+    dayEl.className='day';
+    const partido = partidosCache.find(p => p.fecha===dateStr);
+    if(partido){
+      if(partido.ganador===1) dayEl.classList.add('red');
+      else if(partido.ganador===2) dayEl.classList.add('blue');
+      else dayEl.classList.add('gray');
+    }
+    dayEl.textContent = day;
+    calendar.appendChild(dayEl);
+  }
+}
+
+// Formulario submit
+document.getElementById("addForm").addEventListener("submit", (e)=>{
   e.preventDefault();
   const fecha = document.getElementById("fecha").value;
-  const hora = document.getElementById("hora").value;
+  const hora = document.getElementById("hora").value || undefined;
   const ganador = parseInt(document.getElementById("ganador").value);
   const resultado = document.getElementById("resultado").value.trim();
   const token = document.getElementById("token").value.trim();
   const statusDiv = document.getElementById("status");
-  statusDiv.textContent = "Procesando...";
-  statusDiv.style.color = "#e6e9f2";
+
+  // Buscar partido por fecha solamente
+  let partidoExistente = partidosCache.find(p => p.fecha===fecha);
+
+  if(partidoExistente){
+    if(hora) partidoExistente.hora = hora; // opcionalmente actualizar hora
+    if(ganador!==3) partidoExistente.ganador = ganador;
+    if(resultado) partidoExistente.resultado = resultado;
+  } else {
+    partidosCache.push({fecha, hora, ganador: ganador || 3, resultado: resultado || undefined});
+  }
+
+  partidosCache.sort((a,b)=> new Date(a.fecha)-new Date(b.fecha));
+  renderMiniCalendar();
+  statusDiv.textContent = "✅ Cambios aplicados en memoria. Haz click en enviar a GitHub cuando termines.";
+  statusDiv.style.color = "lightgreen";
+});
+
+// Enviar a GitHub
+document.getElementById("sendGit").addEventListener("click", async ()=>{
+  const token = document.getElementById("token").value.trim();
+  const statusDiv = document.getElementById("status");
+  if(!token){ statusDiv.textContent="❌ Introduce el token antes de enviar."; statusDiv.style.color="red"; return; }
+  statusDiv.textContent = "📤 Enviando a GitHub...";
+  statusDiv.style.color="#e6e9f2";
 
   try {
-    let res = await fetch(BACK_JSON_URL);
-    if(!res.ok) throw new Error("No se pudo leer el JSON.");
-    let partidos = await res.json();
-
-    let partidoExistente = partidos.find(p => p.fecha===fecha && p.hora===hora);
-
-    if(partidoExistente){
-      if(ganador!==3) partidoExistente.ganador = ganador;
-      if(resultado) partidoExistente.resultado = resultado;
-    } else {
-      partidos.push({fecha, hora, ganador: ganador || 3, resultado: resultado || undefined});
-    }
-
-    partidos.sort((a,b)=> new Date(a.fecha)-new Date(b.fecha));
-    const base64Content = btoa(JSON.stringify(partidos,null,2));
-
+    const base64Content = btoa(JSON.stringify(partidosCache,null,2));
     const repo = "vicentsargues/PadelGamer";
     const branch = "main";
     const filePath = "back.json";
 
-    res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`, {
+    let res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`, {
       headers: { Authorization: `token ${token}` }
     });
     if(!res.ok) throw new Error("No se pudo obtener SHA del archivo.");
@@ -84,27 +138,25 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
 
     res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
       method: "PUT",
-      headers: {
-        Authorization: `token ${token}`,
-        "Content-Type":"application/json"
-      },
+      headers: { Authorization: `token ${token}`, "Content-Type":"application/json" },
       body: JSON.stringify({
-        message: partidoExistente ? `Actualizado partido ${fecha} ${hora}` : `Añadido partido ${fecha} ${hora}`,
+        message: `Actualización de partidos desde mini-calendario`,
         content: base64Content,
         sha: sha,
         branch: branch
       })
     });
-
     if(!res.ok) throw new Error("No se pudo actualizar el JSON en GitHub.");
-    statusDiv.textContent = "✅ Partido registrado/actualizado correctamente!";
-    statusDiv.style.color = "lightgreen";
-  } catch(err) {
+    statusDiv.textContent = "✅ Cambios enviados a GitHub correctamente!";
+    statusDiv.style.color="lightgreen";
+  } catch(err){
     console.error(err);
-    statusDiv.textContent = "❌ Error: " + err.message;
-    statusDiv.style.color = "red";
+    statusDiv.textContent = "❌ Error: "+err.message;
+    statusDiv.style.color="red";
   }
 });
+
+cargarPartidos();
 </script>
 </body>
 </html>
