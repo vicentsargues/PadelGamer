@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Padel Gamer · Calendario</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg: #0e0f13;
+      --card: #151824;
+      --muted: #8892b0;
+      --text: #e6e9f2;
+      --accent: #35e6a8;
+      --accent-2: #7cf4ff;
+      --play: #11271e;
+    }
+    *{ box-sizing: border-box; }
+    body{
+      margin:0; font-family: Inter, sans-serif; color:var(--text);
+      background: linear-gradient(180deg, #0d0f16 0%, #0b0d13 100%);
+    }
+    .wrap{ max-width: 1000px; margin: 24px auto; padding: 16px; }
+    .app{ background: var(--card); border-radius: 20px; overflow: hidden; }
+    header{ display:flex; align-items:center; justify-content:space-between; padding: 16px; border-bottom:1px solid rgba(255,255,255,.1); }
+    .brand{ display:flex; align-items:center; gap:14px; }
+    .logo{ width:42px; height:42px; border-radius:12px; display:grid; place-items:center; font-size:22px; background: var(--accent); color:#05110b; font-weight:800; }
+    h1{ margin:0; font-family: Montserrat, Inter, sans-serif; font-weight:800; }
+    .controls{ display:flex; gap:8px; }
+    .btn{ border: none; background:#10131d; color:var(--text); padding:8px 12px; border-radius:8px; cursor:pointer; }
+    .calendar{ padding:16px; }
+    .monthbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    .grid{ display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .dow{ color: var(--muted); font-size: 12px; text-align:center; }
+    .day{ min-height:80px; border-radius:10px; border:1px solid rgba(255,255,255,.1); background:#0f1320; padding:6px; display:flex; flex-direction:column; justify-content:space-between; }
+    .day.out{ opacity:.3; }
+    .number{ font-size:14px; font-weight:600; }
+    .badge{ font-size:11px; font-weight:600; border-radius:6px; padding:2px 6px; margin-top:4px; }
+    .badge.play{ background: var(--accent); color:#000; }
+    .badge.today{ background: var(--accent-2); color:#000; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="app">
+      <header>
+        <div class="brand">
+          <div class="logo">🎾</div>
+          <div>
+            <h1>Padel Gamer</h1>
+            <div>Calendario de partidas</div>
+          </div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="prevBtn">⟵</button>
+          <button class="btn" id="todayBtn">Hoy</button>
+          <button class="btn" id="nextBtn">⟶</button>
+        </div>
+      </header>
+      <section class="calendar">
+        <div class="monthbar">
+          <div id="monthTitle">Mes Año</div>
+        </div>
+        <div class="grid" id="dow"></div>
+        <div class="grid" id="grid"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // Array de fechas con partida (formato YYYY-MM-DD)
+    const partidasFijas = {
+      "2025-09-05": true,
+      "2025-09-12": true
+    };
+
+    const ES = 'es-ES';
+    const fmtMonth = new Intl.DateTimeFormat(ES, { month: 'long', year: 'numeric' });
+    const fmtWeekday = new Intl.DateTimeFormat(ES, { weekday: 'short' });
+
+    function startOfMonth(date){ return new Date(date.getFullYear(), date.getMonth(), 1); }
+    function endOfMonth(date){ return new Date(date.getFullYear(), date.getMonth()+1, 0); }
+    function addMonths(date, n){ return new Date(date.getFullYear(), date.getMonth()+n, 1); }
+
+    function toKey(d){
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function weekdayMondayFirst(d){
+      const w = d.getDay();
+      return (w + 6) % 7;
+    }
+
+    const grid = document.getElementById('grid');
+    const dow = document.getElementById('dow');
+    const title = document.getElementById('monthTitle');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const todayBtn = document.getElementById('todayBtn');
+
+    const today = new Date();
+    let current = startOfMonth(today);
+
+    function renderWeekdays(){
+      dow.innerHTML = '';
+      const ref = new Date(2025, 7, 4); // lunes
+      for(let i=0;i<7;i++){
+        const d = new Date(ref); d.setDate(ref.getDate()+i);
+        const el = document.createElement('div');
+        el.className = 'dow';
+        el.textContent = fmtWeekday.format(d).replace('.', '').toUpperCase();
+        dow.appendChild(el);
+      }
+    }
+
+    function render(){
+      title.textContent = fmtMonth.format(current).replace(/^./, c=>c.toUpperCase());
+      grid.innerHTML = '';
+      const start = startOfMonth(current);
+      const end = endOfMonth(current);
+
+      const padStart = weekdayMondayFirst(start);
+      for(let i=0;i<padStart;i++){
+        const filler = document.createElement('div');
+        filler.className = 'day out';
+        grid.appendChild(filler);
+      }
+
+      for(let day=1; day<=end.getDate(); day++){
+        const d = new Date(current.getFullYear(), current.getMonth(), day);
+        const key = toKey(d);
+        const isToday = key === toKey(today);
+        const isPlay = partidasFijas[key];
+
+        const cell = document.createElement('div');
+        cell.className = 'day';
+        const top = document.createElement('div');
+        top.className = 'number';
+        top.textContent = day;
+        cell.appendChild(top);
+
+        if(isPlay){
+          const b = document.createElement('div');
+          b.className = 'badge play';
+          b.textContent = 'Partida';
+          cell.appendChild(b);
+        }
+        if(isToday){
+          const t = document.createElement('div');
+          t.className = 'badge today';
+          t.textContent = 'Hoy';
+          cell.appendChild(t);
+        }
+
+        grid.appendChild(cell);
+      }
+    }
+
+    prevBtn.addEventListener('click', () => { current = addMonths(current, -1); render(); });
+    nextBtn.addEventListener('click', () => { current = addMonths(current, 1); render(); });
+    todayBtn.addEventListener('click', () => { current = startOfMonth(new Date()); render(); });
+
+    renderWeekdays();
+    render();
+  </script>
+</body>
+</html>
