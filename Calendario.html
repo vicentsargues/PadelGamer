@@ -3,14 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>➕ Añadir Partido - Padel Gamer</title>
+<title>➕ Registrar / Actualizar Partido - Padel Gamer</title>
 <style>
   body { font-family: Arial, sans-serif; background:#0e0f13; color:#e6e9f2; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;}
-  .container { background:#151824; padding:24px; border-radius:16px; width:300px; box-shadow:0 4px 10px rgba(0,0,0,.5);}
+  .container { background:#151824; padding:24px; border-radius:16px; width:320px; box-shadow:0 4px 10px rgba(0,0,0,.5);}
   h2 { text-align:center; margin-bottom:16px; }
   form { display:flex; flex-direction:column; gap:12px; }
-  label { font-weight:600; }
-  input { padding:8px; border-radius:8px; border:none; font-size:14px; }
+  label { font-weight:600; font-size:14px; }
+  input, select { padding:8px; border-radius:8px; border:none; font-size:14px; background:#10131d; color:#e6e9f2; }
+  input::placeholder { color:#aaa; }
   button { padding:10px; border:none; border-radius:10px; background:#35e6a8; color:#000; font-weight:600; cursor:pointer; transition:.2s; }
   button:hover { background:#7cf4ff; }
   #status { margin-top:12px; text-align:center; font-weight:600; }
@@ -18,15 +19,23 @@
 </head>
 <body>
 <div class="container">
-  <h2>➕ Añadir Partido</h2>
+  <h2>➕ Registrar / Actualizar Partido</h2>
   <form id="addForm">
     <label>Fecha:</label>
     <input type="date" id="fecha" required>
     <label>Hora:</label>
     <input type="time" id="hora" required>
+    <label>Ganador:</label>
+    <select id="ganador">
+      <option value="3">Pendiente</option>
+      <option value="1">Sargues</option>
+      <option value="2">Mantis</option>
+    </select>
+    <label>Resultado (opcional):</label>
+    <input type="text" id="resultado" placeholder="6-3,4-6,10-8">
     <label>Token GitHub:</label>
     <input type="password" id="token" required placeholder="Personal Access Token">
-    <button type="submit">Añadir partido pendiente</button>
+    <button type="submit">Registrar / Actualizar</button>
   </form>
   <div id="status"></div>
 </div>
@@ -38,29 +47,34 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
   e.preventDefault();
   const fecha = document.getElementById("fecha").value;
   const hora = document.getElementById("hora").value;
-  const token = document.getElementById("token").value;
+  const ganador = parseInt(document.getElementById("ganador").value);
+  const resultado = document.getElementById("resultado").value.trim();
+  const token = document.getElementById("token").value.trim();
   const statusDiv = document.getElementById("status");
   statusDiv.textContent = "Procesando...";
+  statusDiv.style.color = "#e6e9f2";
 
   try {
-    // 1️⃣ Obtener JSON actual desde la URL "raw"
     let res = await fetch(BACK_JSON_URL);
     if(!res.ok) throw new Error("No se pudo leer el JSON.");
     let partidos = await res.json();
 
-    // 2️⃣ Añadir partido pendiente
-    partidos.push({fecha, hora, ganador:3}); // pendiente
-    partidos.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+    let partidoExistente = partidos.find(p => p.fecha===fecha && p.hora===hora);
 
-    // 3️⃣ Convertir a Base64 para GitHub API
+    if(partidoExistente){
+      if(ganador!==3) partidoExistente.ganador = ganador;
+      if(resultado) partidoExistente.resultado = resultado;
+    } else {
+      partidos.push({fecha, hora, ganador: ganador || 3, resultado: resultado || undefined});
+    }
+
+    partidos.sort((a,b)=> new Date(a.fecha)-new Date(b.fecha));
     const base64Content = btoa(JSON.stringify(partidos,null,2));
 
-    // 4️⃣ Hacer PUT a GitHub API para actualizar back.json
     const repo = "vicentsargues/PadelGamer";
     const branch = "main";
     const filePath = "back.json";
 
-    // Obtener SHA del archivo
     res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}?ref=${branch}`, {
       headers: { Authorization: `token ${token}` }
     });
@@ -68,7 +82,6 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
     const data = await res.json();
     const sha = data.sha;
 
-    // Actualizar archivo
     res = await fetch(`https://api.github.com/repos/${repo}/contents/${filePath}`, {
       method: "PUT",
       headers: {
@@ -76,7 +89,7 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
         "Content-Type":"application/json"
       },
       body: JSON.stringify({
-        message: `Añadido partido pendiente ${fecha} ${hora}`,
+        message: partidoExistente ? `Actualizado partido ${fecha} ${hora}` : `Añadido partido ${fecha} ${hora}`,
         content: base64Content,
         sha: sha,
         branch: branch
@@ -84,10 +97,12 @@ document.getElementById("addForm").addEventListener("submit", async (e)=>{
     });
 
     if(!res.ok) throw new Error("No se pudo actualizar el JSON en GitHub.");
-    statusDiv.textContent = "✅ Partido añadido correctamente!";
+    statusDiv.textContent = "✅ Partido registrado/actualizado correctamente!";
+    statusDiv.style.color = "lightgreen";
   } catch(err) {
     console.error(err);
     statusDiv.textContent = "❌ Error: " + err.message;
+    statusDiv.style.color = "red";
   }
 });
 </script>
