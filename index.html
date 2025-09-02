@@ -59,6 +59,7 @@ section.active{display:block;}
 <button onclick="showSection('calendario')">Calendario</button>
 <button onclick="showSection('historico')">Partidos</button>
 <button onclick="showSection('ranking')">Ranking</button>
+<button onclick="window.open('https://vicentsargues.github.io/PadelGamer/Calendario.html', '_blank')">Registrar partido</button>
 </nav>
 </header>
 
@@ -103,13 +104,11 @@ section.active{display:block;}
 </div>
 
 <script>
-// -------- CONFIGURACIÓN PARTIDOS ----------
+// URL del JSON en GitHub
+const BACK_JSON_URL = "https://raw.githubusercontent.com/vicentsargues/PadelGamer/main/back.json";
+
 const equipos = ["Sargues","Mantis",""];
-const partidos = [
-{fecha:"2025-09-08", hora:"18:00", ganador:3},
-{fecha:"2025-09-05", hora:"18:00", ganador:1, resultado:"6-3,4-6,10-8"},
-{fecha:"2025-09-12", hora:"20:00", ganador:2, resultado:"7-5,3-6,11-9"}
-];
+let partidos = [];
 
 // -------- CONFIGURACIÓN RANKING ----------
 const jugadores = [
@@ -119,9 +118,7 @@ const jugadores = [
   {nombre:"Vicent", img:"https://raw.githubusercontent.com/vicentsargues/PadelGamer/main/img4.JPG", retraso:5, cancelaciones:1, lvp:1}
 ];
 // fórmula: 0.5 * retraso + 5 * cancelaciones + 5 * lvp
-jugadores.forEach(j=>{
-  j.puntos = j.retraso*0.5 + j.cancelaciones*5 + j.lvp*5;
-});
+jugadores.forEach(j=> j.puntos = j.retraso*0.5 + j.cancelaciones*5 + j.lvp*5);
 jugadores.sort((a,b)=>b.puntos-a.puntos);
 
 // -------- CALENDARIO ----------
@@ -137,6 +134,19 @@ const title = document.getElementById('monthTitle');
 const prevBtn = document.getElementById('prevBtn');
 const nextBtn = document.getElementById('nextBtn');
 const todayBtn = document.getElementById('todayBtn');
+
+async function fetchPartidos(){
+  try{
+    const res = await fetch(BACK_JSON_URL);
+    if(!res.ok) throw new Error("No se pudo cargar el JSON.");
+    partidos = await res.json();
+    render();
+    renderHistorico();
+  } catch(e){
+    console.error(e);
+    partidos = [];
+  }
+}
 
 function toKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function weekdayMondayFirst(d){ return (d.getDay()+6)%7; }
@@ -248,9 +258,9 @@ document.getElementById(id).classList.add('active');
 if(id==='ranking'){ renderRanking(); }
 }
 
+// CARGA INICIAL DEL JSON
 renderWeekdays();
-render();
-renderHistorico();
+fetchPartidos();
 </script>
 </body>
 </html>
