@@ -49,6 +49,37 @@ section.active{display:block;}
 .player-card{display:flex;align-items:center;gap:12px;padding:8px;margin:8px 0;background:#0f1320;border-radius:12px;}
 .player-card img{width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);}
 .trophy{font-size:22px;margin-left:auto;}
+
+/* Botón de música */
+#musicBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: #000;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  transition: transform 0.2s, background 0.3s;
+}
+#musicBtn:hover {
+  transform: scale(1.1) rotate(8deg);
+  background: var(--accent-2);
+}
+#musicBtn.playing {
+  animation: spin 3s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg);}
+  to { transform: rotate(360deg);}
+}
 </style>
 </head>
 <body>
@@ -103,6 +134,10 @@ section.active{display:block;}
 
 </div>
 
+<!-- Botón + audio -->
+<audio id="padelSong" src="https://raw.githubusercontent.com/vicentsargues/PadelGamer/main/padelmusica.mp3"></audio>
+<button id="musicBtn">🎵</button>
+
 <script>
 // URL del JSON en GitHub
 const BACK_JSON_URL = "https://raw.githubusercontent.com/vicentsargues/PadelGamer/main/back.json";
@@ -117,7 +152,6 @@ const jugadores = [
   {nombre:"Raul", img:"https://raw.githubusercontent.com/vicentsargues/PadelGamer/main/img3.JPG", retraso:2, cancelaciones:0, lvp:0},
   {nombre:"Vicent", img:"https://raw.githubusercontent.com/vicentsargues/PadelGamer/main/img4.JPG", retraso:0, cancelaciones:0, lvp:0}
 ];
-// fórmula: 0.5 * retraso + 5 * cancelaciones + 5 * lvp
 jugadores.forEach(j=> j.puntos = j.retraso*0.5 + j.cancelaciones*5 + j.lvp*5);
 jugadores.sort((a,b)=>b.puntos-a.puntos);
 
@@ -156,7 +190,7 @@ function addMonths(d,n){ return new Date(d.getFullYear(), d.getMonth()+n,1); }
 
 function renderWeekdays(){
 dow.innerHTML='';
-const ref = new Date(2025,7,4); // lunes
+const ref = new Date(2025,7,4);
 for(let i=0;i<7;i++){
   const d=new Date(ref); d.setDate(ref.getDate()+i);
   const el=document.createElement('div'); el.className='dow';
@@ -257,6 +291,25 @@ document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
 document.getElementById(id).classList.add('active');
 if(id==='ranking'){ renderRanking(); }
 }
+
+// Botón de música
+const musicBtn = document.getElementById("musicBtn");
+const padelSong = document.getElementById("padelSong");
+let playing = false;
+
+musicBtn.addEventListener("click", () => {
+  if (!playing) {
+    padelSong.play();
+    playing = true;
+    musicBtn.classList.add("playing");
+    musicBtn.textContent = "⏸️";
+  } else {
+    padelSong.pause();
+    playing = false;
+    musicBtn.classList.remove("playing");
+    musicBtn.textContent = "🎵";
+  }
+});
 
 // CARGA INICIAL DEL JSON
 renderWeekdays();
